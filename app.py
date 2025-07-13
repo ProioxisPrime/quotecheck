@@ -20,7 +20,8 @@ def unify_quotes(text):
     )
 
 def tokenize(text):
-    return re.findall(r'\w+|\s+|[^\w\s]', text)
+    # Treat words with internal apostrophes as single tokens:
+    return re.findall(r"[A-Za-z0-9]+(?:'[A-Za-z0-9]+)*|\s+|[^\w\s]", text)
 
 # ─── Page setup ────────────────────────────────────────────────────────────
 st.set_page_config(layout="wide")
@@ -55,7 +56,8 @@ for line in raw_lines:
     buf = (buf + " " + s) if buf else s
     if re.search(r'[\.!?](?:["’”])?$', s) or s.endswith("/ENDS"):
         merged.append(buf); buf = ""
-if buf: merged.append(buf)
+if buf:
+    merged.append(buf)
 src_lines = merged
 
 # ─── Index source sentences ────────────────────────────────────────────────
@@ -99,9 +101,10 @@ for m in matches:
         sent = subs[i]
         ws   = subs[i+1] if i+1 < len(subs) else ""
         raw_toks  = tokenize(sent)
-        norm_toks = [normalize(t) if re.fullmatch(r'\w+',t) else t for t in raw_toks]
+        norm_toks = [normalize(t) if re.fullmatch(r"[A-Za-z0-9]+'?[A-Za-z0-9]+|[A-Za-z0-9]+", t)
+                     else t for t in raw_toks]
         n         = len(norm_toks)
-        total_w   = sum(1 for t in raw_toks if re.fullmatch(r'\w+',t))
+        total_w   = sum(1 for t in raw_toks if re.fullmatch(r"[A-Za-z0-9]+'?[A-Za-z0-9]+|[A-Za-z0-9]+", t))
         short_q   = (total_w <= 1)
 
         # find best alignment
@@ -114,7 +117,7 @@ for m in matches:
         highlighted = []
         if best_r < THRESHOLD:
             for t in raw_toks:
-                if re.fullmatch(r'\w+',t):
+                if re.fullmatch(r"[A-Za-z0-9]+'?[A-Za-z0-9]+|[A-Za-z0-9]+", t):
                     highlighted.append(f"<span style='background:#ffcdd2'>{t}</span>")
                     errors += 1
                 else:
@@ -125,20 +128,20 @@ for m in matches:
             for tag, i1, i2, j1, j2 in matcher.get_opcodes():
                 seg = raw_toks[i1:i2]
                 if tag == 'equal':
-                    wc = sum(1 for w in seg if re.fullmatch(r'\w+',w))
+                    wc = sum(1 for w in seg if re.fullmatch(r"[A-Za-z0-9]+'?[A-Za-z0-9]+|[A-Za-z0-9]+", w))
                     if short_q or wc >= MIN_EQ_RUN:
                         phrase = "".join(seg)
                         highlighted.append(f"<span style='background:#c8e6c9'>{phrase}</span>")
                     else:
                         for w in seg:
-                            if re.fullmatch(r'\w+',w):
+                            if re.fullmatch(r"[A-Za-z0-9]+'?[A-Za-z0-9]+|[A-Za-z0-9]+", w):
                                 highlighted.append(f"<span style='background:#ffcdd2'>{w}</span>")
                                 errors += 1
                             else:
                                 highlighted.append(w)
                 else:
                     for w in seg:
-                        if re.fullmatch(r'\w+',w):
+                        if re.fullmatch(r"[A-Za-z0-9]+'?[A-Za-z0-9]+|[A-Za-z0-9]+", w):
                             highlighted.append(f"<span style='background:#ffcdd2'>{w}</span>")
                             errors += 1
                         else:
